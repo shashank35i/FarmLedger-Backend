@@ -90,6 +90,15 @@ flowchart LR
 
 ---
 
+## Related Repositories
+
+```text
+Android App: https://github.com/shashank35i/FarmLedger
+Backend API: https://github.com/shashank35i/FarmLedger-Backend
+```
+
+---
+
 ## Local Development
 
 ### 1. Configure environment
