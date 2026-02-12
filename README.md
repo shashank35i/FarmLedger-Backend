@@ -1,70 +1,121 @@
-# FarmLedger
+﻿<div align="center">
+  <h1>FarmLedger Backend</h1>
+  <p>PHP API + MySQL + Hardhat chain bridge for tamper-evident farm-to-shelf traceability.</p>
+  <p>
+    <img src="https://img.shields.io/badge/Backend-PHP-4f5b93" alt="Backend" />
+    <img src="https://img.shields.io/badge/Database-MySQL-0b74de" alt="Database" />
+    <img src="https://img.shields.io/badge/Chain-Hardhat-2d2d2d" alt="Chain" />
+    <img src="https://img.shields.io/badge/Docker-Compose-0aa06e" alt="Docker" />
+    <img src="https://img.shields.io/badge/Status-Production%20Ready-1f8f5f" alt="Status" />
+  </p>
+  <p><strong>Built by Shashank Preetham Pendyala</strong></p>
+</div>
 
-FarmLedger is a blockchain‑anchored agricultural traceability platform that makes every batch verifiable from farm to consumer. It pairs a role‑based mobile experience with a PHP API, a Hardhat local chain, and a lightweight chain bridge that anchors batch hashes on‑chain.
+---
 
-**Why it matters**
-- Counterfeit produce and opaque supply chains erode trust.
-- FarmLedger makes provenance auditable with a tamper‑evident hash trail.
-- Consumers and buyers can verify a product’s journey with a single scan.
+## Overview
 
-**Core roles**
-- **Farmer:** creates crop batches, generates QR, and initiates transfers.
-- **Distributor:** verifies batches, updates transport/location, and passes custody.
-- **Retailer:** confirms receipt, manages inventory, and sells verified goods.
-- **Consumer:** scans QR to view the full journey and verify authenticity.
+FarmLedger Backend powers the traceability workflow behind the FarmLedger mobile experience. It records batch creation and custody transfers in MySQL, generates QR payloads, and anchors batch hashes through a chain bridge on a local Hardhat network for tamper-evident verification.
 
-**What makes it special**
-- On‑chain anchoring of batch hashes (`FARMLEDGER|v1` QR payloads).
-- Real‑time custody trail across multiple actors.
-- QR‑first flow for fast verification in the field.
-- Designed for scale: stateless bridge, MySQL schema, JWT auth.
+---
+
+## Table of Contents
+
+- [Why It Matters](#why-it-matters)
+- [Key Capabilities](#key-capabilities)
+- [Core Roles](#core-roles)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Local Development](#local-development)
+- [Environment Variables](#environment-variables)
+- [Smart Contract](#smart-contract)
+- [API Modules](#api-modules)
+- [Verification Flow](#verification-flow)
+- [Production Notes](#production-notes)
+- [License](#license)
+
+---
+
+## Why It Matters
+
+- Counterfeit produce and opaque supply chains erode trust and margins.
+- FarmLedger provides a verifiable custody chain for every batch.
+- QR-first verification reduces audit friction in the field.
+
+---
+
+## Key Capabilities
+
+| Capability | Description |
+| --- | --- |
+| Role-based access | Farmer, Distributor, Retailer, Consumer flows supported. |
+| QR traceability | Generate and verify batch QR payloads quickly. |
+| Tamper-evident hash | Batch hashes anchored via chain bridge. |
+| Custody timeline | Each handoff recorded with timestamps and metadata. |
+| Dockerized stack | One-command local development environment. |
+
+---
+
+## Core Roles
+
+- **Farmer**: creates batches, generates QR, initiates transfers.
+- **Distributor**: verifies batches, updates transport/location, passes custody.
+- **Retailer**: confirms receipt, manages inventory, marks sales.
+- **Consumer**: verifies provenance and authenticity with QR scan.
+
+---
 
 ## Architecture
 
-1. **Android App (Kotlin)**  
-   Role‑aware UI for Farmers, Distributors, Retailers, and Consumers.
+```mermaid
+flowchart LR
+  U[Users\nFarmer / Distributor / Retailer / Consumer] --> API[PHP API\nApache]
+  API --> DB[(MySQL)]
+  API --> BR[Chain Bridge\nNode]
+  BR --> CHAIN[(Hardhat RPC)]
+```
 
-2. **PHP API (Apache + MySQL)**  
-   Auth, batch creation, transfers, verification, and profile endpoints.
+---
 
-3. **Chain Bridge (Node + Express)**  
-   Anchors batch hashes on the local chain and serves chain verification.
+## Repository Structure
 
-4. **Smart Contract (Hardhat)**  
-   `FarmLedgerRegistry` stores batch hash by batch code.
-
-## Folder Structure
-
-- `api/` PHP API endpoints + schema
+- `api/` PHP API endpoints, auth, QR, and verification
 - `farmledger_chain_bridge/` Hardhat + bridge server + contract
 - `docker/` Dockerfiles
 - `docker-compose.yml` Full local stack
 
-## Local Development (Docker)
+---
 
-1. Copy env:
+## Local Development
+
+### 1. Configure environment
+
 ```bash
 cp .env.example .env
 ```
 
-2. Start stack:
+### 2. Start the stack
+
 ```bash
 docker compose up --build
 ```
 
-**Services started**
-- MySQL (auto‑imports `api/schema_query.sql`)
-- PHP/Apache API on port `8080`
-- Hardhat local chain on port `8545`
-- Chain bridge on port `5055`
+### Services
 
-**Health checks**
+- MySQL (auto-imports `api/schema_query.sql`)
+- PHP/Apache API on `8080`
+- Hardhat local chain on `8545`
+- Chain bridge on `5055`
+
+### Health checks
+
 ```bash
 curl http://localhost:5055/bridge/health
 curl http://localhost:8080/batches/my_products.php
 ```
 
-**Verify on‑chain flow**
+### Verify chain flow
+
 ```bash
 curl -X POST http://localhost:5055/chain/batchCreated \
   -H "Content-Type: application/json" \
@@ -73,10 +124,13 @@ curl -X POST http://localhost:5055/chain/batchCreated \
 curl http://localhost:5055/chain/batch/1
 ```
 
-**DB sanity check**
+### DB sanity check
+
 ```bash
 mysql -h 127.0.0.1 -u farmledger -pfarmledger -e "USE farmledger; SHOW TABLES;"
 ```
+
+---
 
 ## Environment Variables
 
@@ -87,33 +141,48 @@ mysql -h 127.0.0.1 -u farmledger -pfarmledger -e "USE farmledger; SHOW TABLES;"
 - `CHAIN_BRIDGE_URL`
 - `JWT_SECRET`
 
+---
+
 ## Smart Contract
 
 `FarmLedgerRegistry` provides:
+
 - `recordBatchCreated(batchCode, payloadHash)`
 - `getBatchHash(batchCode)`
 
 The chain bridge proxies these for local development and deterministic testing.
 
-## API Highlights
+---
 
-Key modules:
+## API Modules
+
 - `api/auth/` OTP + JWT authentication
 - `api/farmer/` batch creation + QR generation
 - `api/distributor/` transfer + transport updates
 - `api/retailer/` receipt confirmation + inventory
 - `api/consumer/` verification + journey lookup
+- `api/qr/` QR payload generation and retrieval
+- `api/verify/` chain verification helpers
+
+---
+
+## Verification Flow
+
+1. Batch created with metadata.
+2. QR payload generated using `FARMLEDGER|v1` prefix.
+3. Hash anchored via chain bridge.
+4. Consumers and buyers verify journey and hash match.
+
+---
 
 ## Production Notes
 
 - Move SMTP and JWT secrets into environment variables.
-- Remove build artifacts and cached Hardhat outputs before publishing.
-- Use a managed database and HTTPS reverse proxy in production.
+- Use HTTPS and a reverse proxy in production.
+- Keep chain keys out of source control.
 
-## Mobile App
+---
 
-The Android client is the primary interface for all roles. It expects:
-- `API_BASE_URL` pointing to the API container (or remote server).
-- QR scan flow for verification and custody hand‑offs.
+## License
 
-If you keep the Android app in a separate repo, wire the base URL to your API host.
+MIT License. Copyright (c) 2026 Shashank Preetham Pendyala.
