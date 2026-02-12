@@ -7,6 +7,7 @@
     <img src="https://img.shields.io/badge/Chain-Hardhat-2d2d2d" alt="Chain" />
     <img src="https://img.shields.io/badge/Docker-Compose-0aa06e" alt="Docker" />
     <img src="https://img.shields.io/badge/Status-Production%20Ready-1f8f5f" alt="Status" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1F6FEB" alt="License" /></a>
   </p>
   <p><strong>Built by Shashank Preetham Pendyala</strong></p>
 </div>
@@ -308,4 +309,4 @@ Only the batch hash. Full metadata remains in MySQL for performance and privacy.
 
 ## License
 
-MIT License. Copyright (c) 2026 Shashank Preetham Pendyala.
+MIT License. See [LICENSE](LICENSE).
