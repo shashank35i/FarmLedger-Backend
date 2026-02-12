@@ -1,0 +1,65 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: farmledger-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-farmledger}
+      MYSQL_USER: ${DB_USER:-farmledger}
+      MYSQL_PASSWORD: ${DB_PASS:-farmledger}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-root}
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./docker/mysql_data:/var/lib/mysql
+      - ./api/schema_query.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+
+  hardhat:
+    image: node:18-bullseye
+    container_name: farmledger-hardhat
+    working_dir: /app
+    volumes:
+      - ./farmledger_chain_bridge:/app
+    ports:
+      - "${HARDHAT_PORT:-8545}:8545"
+    command: >
+      sh -c "npm install &&
+             npx hardhat node --hostname 0.0.0.0"
+
+  bridge:
+    image: node:18-bullseye
+    container_name: farmledger-bridge
+    working_dir: /app
+    depends_on:
+      - hardhat
+    environment:
+      RPC_URL: ${RPC_URL:-http://hardhat:8545}
+      PRIVATE_KEY: ${PRIVATE_KEY:-0x0000000000000000000000000000000000000000000000000000000000000000}
+      BRIDGE_PORT: ${BRIDGE_PORT:-5055}
+    volumes:
+      - ./farmledger_chain_bridge:/app
+    ports:
+      - "${BRIDGE_PORT:-5055}:5055"
+    command: >
+      sh -c "npm install &&
+             node scripts/auto_start_bridge.js"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: farmledger-api
+    depends_on:
+      - mysql
+      - bridge
+    environment:
+      DB_HOST: mysql
+      DB_NAME: ${DB_NAME:-farmledger}
+      DB_USER: ${DB_USER:-farmledger}
+      DB_PASS: ${DB_PASS:-farmledger}
+      CHAIN_BRIDGE_URL: ${CHAIN_BRIDGE_URL:-http://bridge:5055}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+    volumes:
+      - ./api:/var/www/html
+    ports:
+      - "${API_PORT:-8080}:80"

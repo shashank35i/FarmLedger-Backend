@@ -1,0 +1,11 @@
+/.env
+/.idea
+/node_modules
+/vendor
+/api/vendor
+/api/uploads
+/docker/mysql_data
+/farmledger_chain_bridge/.env
+/farmledger_chain_bridge/node_modules
+/farmledger_chain_bridge/cache
+/farmledger_chain_bridge/artifacts
