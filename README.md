@@ -28,10 +28,14 @@ FarmLedger Backend powers the traceability workflow behind the FarmLedger mobile
 - [Repository Structure](#repository-structure)
 - [Local Development](#local-development)
 - [Environment Variables](#environment-variables)
-- [Smart Contract](#smart-contract)
 - [API Modules](#api-modules)
+- [API Examples](#api-examples)
+- [Workflow Diagrams](#workflow-diagrams)
+- [Smart Contract](#smart-contract)
 - [Verification Flow](#verification-flow)
-- [Production Notes](#production-notes)
+- [Deployment Guide](#deployment-guide)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
 - [License](#license)
 
 ---
@@ -143,17 +147,6 @@ mysql -h 127.0.0.1 -u farmledger -pfarmledger -e "USE farmledger; SHOW TABLES;"
 
 ---
 
-## Smart Contract
-
-`FarmLedgerRegistry` provides:
-
-- `recordBatchCreated(batchCode, payloadHash)`
-- `getBatchHash(batchCode)`
-
-The chain bridge proxies these for local development and deterministic testing.
-
----
-
 ## API Modules
 
 - `api/auth/` OTP + JWT authentication
@@ -166,6 +159,91 @@ The chain bridge proxies these for local development and deterministic testing.
 
 ---
 
+## API Examples
+
+**Login**
+
+```http
+POST /auth/login
+```
+
+**Create batch**
+
+```http
+POST /farmer/create_batch
+```
+
+**Confirm distributor pickup**
+
+```http
+POST /distributor/confirm_pickup
+```
+
+**Confirm retailer receipt**
+
+```http
+POST /retailer/confirm_receipt
+```
+
+**Consumer verification**
+
+```http
+GET /consumer/verify_qr?code=... 
+```
+
+---
+
+## Workflow Diagrams
+
+### Batch Creation and Anchoring
+
+```mermaid
+sequenceDiagram
+  participant Farmer
+  participant API as Backend API
+  participant DB as MySQL
+  participant Bridge as Chain Bridge
+  participant Chain as Hardhat
+
+  Farmer->>API: POST /farmer/create_batch
+  API->>DB: Insert batch + metadata
+  API->>Bridge: POST /bridge/batchCreated
+  Bridge->>Chain: recordBatchCreated
+  Chain-->>Bridge: tx receipt
+  Bridge-->>API: hash anchored
+  API-->>Farmer: Batch created + QR payload
+```
+
+### Custody Transfer
+
+```mermaid
+sequenceDiagram
+  participant Distributor
+  participant API as Backend API
+  participant DB as MySQL
+  participant Retailer
+
+  Distributor->>API: POST /distributor/confirm_pickup
+  API->>DB: Insert custody event
+  API-->>Distributor: Transfer pending
+  Retailer->>API: POST /retailer/confirm_receipt
+  API->>DB: Confirm receipt
+  API-->>Retailer: Verified + received
+```
+
+---
+
+## Smart Contract
+
+`FarmLedgerRegistry` provides:
+
+- `recordBatchCreated(batchCode, payloadHash)`
+- `getBatchHash(batchCode)`
+
+The chain bridge proxies these for local development and deterministic testing.
+
+---
+
 ## Verification Flow
 
 1. Batch created with metadata.
@@ -175,11 +253,47 @@ The chain bridge proxies these for local development and deterministic testing.
 
 ---
 
-## Production Notes
+## Deployment Guide
+
+### Production checklist
 
 - Move SMTP and JWT secrets into environment variables.
-- Use HTTPS and a reverse proxy in production.
-- Keep chain keys out of source control.
+- Use HTTPS and a reverse proxy (nginx or Caddy).
+- Store chain private keys in a secure vault.
+- Enable database backups and retention.
+- Restrict API exposure with firewall rules.
+
+### Recommended setup
+
+- **Web server**: Nginx reverse proxy
+- **App**: PHP + Apache container
+- **Database**: Managed MySQL (or hardened local instance)
+- **Chain**: Dedicated node or managed RPC
+
+---
+
+## Troubleshooting
+
+- **Port already in use**: change ports in `docker-compose.yml`.
+- **DB not initialized**: delete `docker/mysql_data` and restart.
+- **Bridge health fails**: confirm Hardhat RPC is running on `8545`.
+- **JWT errors**: ensure `JWT_SECRET` is set and consistent.
+
+---
+
+## FAQ
+
+**Is a public blockchain required?**
+
+No. The stack uses a local Hardhat chain by default and can be adapted to public networks in production.
+
+**Can the QR format be changed?**
+
+Yes. Update the backend QR prefix and payload logic in the QR module.
+
+**What data is stored on chain?**
+
+Only the batch hash. Full metadata remains in MySQL for performance and privacy.
 
 ---
 
